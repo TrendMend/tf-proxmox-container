@@ -32,15 +32,15 @@ variable "ipv4_gateway" {
   default = "10.20.0.1"
 }
 
-variable "ssh_public_key_file" {
+variable "ssh_public_key_files" {
   description = "Public key for root user provided as a string - NOTE: This will be deprecated in favour of ansible & packer generating a public key"
-  type = string
+  type = list
 }
 
 variable "datastore_id" {
     description = "The desired datastore, such as local or local-lvm"
     type = string
-    default = "local"
+    default = "local-lvm"
 }
 
 variable "disk_size" {
@@ -84,4 +84,11 @@ variable "nesting" {
     description = "Bool for nesting"
     type = bool
     default = true
+}
+
+variable "provision_steps" {
+  description = "list of commands"
+  type = list
+  nullable = true
+  default = null
 }
