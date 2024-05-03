@@ -4,10 +4,6 @@ terraform {
       source = "bpg/proxmox"
       version = ">=0.46.1"
     }
-  #   ansible = {
-  #     version = ">=1.1.0"
-  #     source  = "ansible/ansible"
-  # }
 }
 }
 
@@ -26,9 +22,7 @@ resource "proxmox_virtual_environment_container" "this" {
       }
     }
     user_account {
-      keys = [
-        trimspace(file(var.ssh_public_key_file))
-      ]
+      keys = concat(var.ssh_public_key_files, [tls_private_key.this_key.public_key_openssh])
     }
   }
 
@@ -62,12 +56,37 @@ resource "proxmox_virtual_environment_container" "this" {
   }
 }
 
+// Conditionally include provisioner only if var.provision_steps is defined
+resource "null_resource" "execute_provision_steps" {
+  count = var.provision_steps != null ? 1 : 0
+
+  provisioner "remote-exec" {
+    inline = var.provision_steps
+
+    connection {
+      host        = split("/", var.ipv4_address)[0]
+      type        = "ssh"
+      user        = "root"
+      private_key = tls_private_key.this_key.private_key_pem
+    }
+  }
+  depends_on = [proxmox_virtual_environment_container.this]
+}
+
+resource "tls_private_key" "this_key" {
+  algorithm = "RSA"
+  rsa_bits  = 2048
+}
+
+resource "random_uuid" "random" {
+}
 
 # Used when template isn't set
 resource "proxmox_virtual_environment_download_file" "lxc-debian-12" {
   content_type = "vztmpl"
-  datastore_id = var.datastore_id
+  datastore_id = "local"
   node_name    = var.node_name
-  url     =  "https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-genericcloud-amd64.tar.xz"
-  overwrite =  "true"
+  url     =  "http://download.proxmox.com/images/system/debian-12-standard_12.2-1_amd64.tar.zst"
+  file_name = "debian-12-${random_uuid.random.result}.tar.zst"
+  overwrite =  true
 }
